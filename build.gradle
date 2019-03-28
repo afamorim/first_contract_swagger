@@ -1,0 +1,80 @@
+buildscript {
+	dependencies {
+		classpath("io.swagger.codegen.v3:swagger-codegen-cli:3.0.3")
+	}
+	repositories {
+		mavenCentral()
+	}
+}
+
+plugins {
+	id 'org.springframework.boot' version '2.1.3.RELEASE'
+	id 'java'
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+group = 'com.vortice.gradle'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+import io.swagger.codegen.config.CodegenConfigurator
+import io.swagger.codegen.DefaultGenerator
+
+def contractYamlFile = '/api.yaml'
+def swaggerOutputDir = file('src/main/java/')
+def swaggerInputDir = file('src/main/resources/')
+task generateApi {
+	inputs.file(contractYamlFile)
+	outputs.dir(swaggerOutputDir)
+	doLast{
+		def config = new CodegenConfigurator()
+		config.setInputSpec(swaggerInputDir.path + contractYamlFile)
+		config.setOutputDir(swaggerOutputDir.path)
+		config.setLang('spring')
+		config.setLibrary('spring-boot')
+		config.setModelNameSuffix("Representation")
+		config.setAdditionalProperties([
+		        'invokerPackage': 'br.com.votorantim.arqt.planoimplantacao',
+				'modelPackage'	: 'br.com.votorantim.arqt.planoimplantacao.representation',
+				'apiPackage'	: 'br.com.votorantim.arqt.planoimplantacao.api',
+				'dateLibrary'	: 'java8',
+				'interfaceOnly'	: 'true'
+		])
+		new DefaultGenerator().opts(config.toClientOptInput()).generate()
+	}
+}
+
+clean.doFirst{
+	delete(swaggerOutputDir)
+}
+
+configurations {
+	swagger
+}
+
+sourceSets {
+	swagger {
+		compileClasspath = configurations.swaggerCompile
+		java {
+			srcDir file("${project.buildDir.path}/src/main/java")
+		}
+	}
+	main {
+		compileClasspath += swagger.output
+		runtimeClasspath += swagger.output
+	}
+	test {
+		compileClasspath += swagger.output
+		runtimeClasspath += swagger.output
+	}
+}
